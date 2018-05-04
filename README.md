@@ -1,5 +1,17 @@
 ## IndustryHack
-This Repo is for MS Industry Hack result submission
+This Repo is for MS Industry Hack Reference and result submission. Before you upload your final results, please finish the [survey](https://forms.office.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbR5csyDIzYMtMot5Hbyct1YNUM0o1SlVYRlQ1MkRFMVFKOVBTRENJRUE4MS4u) to help us know more about you.
+
+## Azure AI Platform Reference
+Below is the full lifecycle in data science and you can find many services on Azure to help you go through the full lifecycle.
+<img src="https://docs.microsoft.com/en-us/azure/machine-learning/team-data-science-process/media/overview/tdsp-lifecycle2.png" width="100%" height="50%" alt="">
+
+* Azure Custom Vision Service [Ref](http://aka.ms/customvision)
+* Azure Machine Learning Studio [Ref](http://aka.ms/amlstudio)
+* Azure Machine Leanring Service [Ref](http://aka.ms/amlservice)
+* Azure Deep Learning VM (DLVM) and GPU [Ref](http://aka.ms/azuregpu)
+
+We suggest you can solve the partner's requirements using Azure AI Platform, which shows in below architecture.
+<img src="./img/AI_Architecture.jpg" width="100%" height="50%" alt="AI Architecture">
 
 ## How to submit your result
 1. Based on the problem code ( e.g. `Decathlon D-1` ), create new sub-directory named by your company name under the proper directory (e.g. `/Decathlon/D-1/{Company Name}` ).
