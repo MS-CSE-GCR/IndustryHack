@@ -10,6 +10,15 @@ Below is the full lifecycle in data science and you can find many services on Az
 * Azure Machine Leanring Service [Ref](http://aka.ms/amlservice)
 * Azure Deep Learning VM (DLVM) and GPU [Ref](http://aka.ms/azuregpu)
 
+## Azure Computing and Data Platform Reference
+You can also leverage Azure computing and data services to deploy your solution.
+
+* Azure App Servie [Ref](https://docs.microsoft.com/en-us/azure/app-service/)
+* Azure SQL DB [Ref](https://docs.microsoft.com/en-us/azure/sql-database/)
+* Azure MySQL DB [Ref](https://docs.microsoft.com/en-us/azure/mysql/)
+* Azure HDInsight [Ref](https://docs.microsoft.com/en-us/azure/hdinsight/)
+* Azure Container Service [Ref](https://docs.microsoft.com/en-us/azure/aks/)
+
 We suggest you can solve the partner's requirements using Azure AI Platform, which shows in below architecture.
 <img src="./img/AI_Architecture.jpg" width="100%" height="50%" alt="AI Architecture">
 
@@ -17,3 +26,4 @@ We suggest you can solve the partner's requirements using Azure AI Platform, whi
 1. Based on the problem code ( e.g. `Decathlon D-1` ), create new sub-directory named by your company name under the proper directory (e.g. `/Decathlon/D-1/{Company Name}` ).
 2. Create a README.md file in the created directory and put all the related results into the created directory.
 3. Provide more detail info in the README.md, following the `README_template.md` template.
+
