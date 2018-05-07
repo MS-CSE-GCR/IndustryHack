@@ -16,6 +16,8 @@ You can also leverage Azure computing and data services to deploy your solution.
 * Azure App Servie [Ref](https://docs.microsoft.com/en-us/azure/app-service/)
 * Azure SQL DB [Ref](https://docs.microsoft.com/en-us/azure/sql-database/)
 * Azure MySQL DB [Ref](https://docs.microsoft.com/en-us/azure/mysql/)
+* Azure Storage [Ref](https://docs.microsoft.com/zh-cn/azure/storage/)
+* Azure Cosmos DB [Ref](https://docs.microsoft.com/zh-cn/azure/cosmos-db/)
 * Azure HDInsight [Ref](https://docs.microsoft.com/en-us/azure/hdinsight/)
 * Azure Container Service [Ref](https://docs.microsoft.com/en-us/azure/aks/)
 
