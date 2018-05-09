@@ -1,10 +1,11 @@
 ## Algorithms
 
-
+IndustryHack/Decathlon/D-2/malong/img/azure.png
 
 
 ## Azure Service
 
+IndustryHack/Decathlon/D-2/malong/img/algorithm.png
 
 ## Result
 The result of model code is in the result-modelCode.xlsx
