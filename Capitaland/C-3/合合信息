@@ -1,0 +1,14 @@
+#### 算法：
+
+检测 深层的卷积神经网络（CNN）
+识别 深层的卷积神经网络（CNN）,循环神经网络（RNN）
+
+#### Azure服务：
+虚拟机：VCPU:8 RAM:32GBSSD：64GB
+Web Service(调用API)：http://20.191.138.38:8080/recognize/ocr
+web app url:https://intsigdpsocr.azurewebsites.net
+SQL数据库：intsigocrdb.database.windows.net 100GB
+
+#### 测试链接：
+合合服务器：https://imgs-sandbox.intsig.net/icr/demo/intcloud_little_ticket.htm
+微软服务器：https://intsigdpsocr.azurewebsites.net
