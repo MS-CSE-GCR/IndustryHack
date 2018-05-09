@@ -1,13 +1,13 @@
-##Algorithms:
+## Algorithms:
 ARIMA : sales volume forecasting
 XGBoost : sales volume forecasting
 Unsupervised learning (K means):  store clustering
 
-##Azure Service:
+## Azure Service:
 Azure BLOB Storage
 Azure SQL
 Azure Machine Learning VM: R & Python Server
 Power BI
 
-##Result:
+## Result:
 Sales volume forecasting result(capitaland_reslut_HARB.csv) 
