@@ -24,8 +24,9 @@ You can also leverage Azure computing and data services to deploy your solution.
 We suggest you can solve the partner's requirements using Azure AI Platform, which shows in below architecture.
 <img src="./img/AI_Architecture.jpg" width="100%" height="50%" alt="AI Architecture">
 
-## How to submit your result
-1. Based on the problem code ( e.g. `Decathlon D-1` ), create new sub-directory named by your company name under the proper directory (e.g. `/Decathlon/D-1/{Company Name}` ).
-2. Create a README.md file in the created directory and put all the related results into the created directory.
-3. Provide more detail info in the README.md, following the `README_template.md` template.
+## Doc Structure
+* Hack@May: Docs and Results, generated in May Industry Hack
+* Hack@June: Docs and Results, generated in June Industry Hack
+* img: Architecture images
+
 
