@@ -24,3 +24,4 @@ Please provide an architecture image if possible.
 Any Results or Web Service API. Some Results or Dashboard images are required.
 ![recall](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/标签召回对比.png "recall")
 ![acc](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/算法准确率对比.png "acc")
+![result](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/结果.jpg "result")
