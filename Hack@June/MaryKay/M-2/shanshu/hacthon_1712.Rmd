@@ -1,0 +1,584 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(glmnet)
+library(cluster)
+library(rpart)
+library(caret)
+library(tidyverse)
+library(Rtsne)
+library(xgboost)
+```
+
+
+## 2017-12数据
+
+```{r personal}
+personal_prod = read_csv("data/personal prod.csv") %>% 
+  mutate(ProductionMonthKey = lubridate::ymd(paste0(ProductionMonthKey, "01"))) %>%
+  filter(ProductionMonthKey == "2017-12-01") %>%
+  mutate(activity_status = recode(ActivityStatusCode, 
+                                  'A1' = 4, 'A2' = 3, 'A3' = 2, 'P1' = 1))
+
+personal_prof = read_csv("data/personal profile.csv", locale = locale(encoding = 'GB18030')) %>% 
+  mutate(workdur = as.Date("2017-12-01") - lubridate::ymd(StartDate)) %>%
+  mutate(workdur = as.numeric(workdur), 
+         age = 2018 - Birthday)
+  
+```
+
+```{r unit}
+unit_prod = read_csv("data/unit prod.csv") %>% 
+  mutate(ProductionMonthKey = lubridate::ymd(paste0(ProductionMonthKey, "01"))) %>%
+  filter(ProductionMonthKey == "2017-12-01")
+
+unit_prod_y = read_csv("data/unit prod.csv") %>% 
+  mutate(ProductionMonthKey = lubridate::ymd(paste0(ProductionMonthKey, "01"))) %>%
+  filter(ProductionMonthKey == "2018-01-01") %>%
+  select(contactid, ProductionAmount)
+
+
+
+unit_relation = read_csv("data/unit relationships.csv") %>% 
+  mutate(ProductionMonthKEY = lubridate::ymd(paste0(ProductionMonthKEY, "01"))) %>%
+  filter(ProductionMonthKEY == "2017-12-01")
+
+n_offspring = unit_relation %>% count(parentcontactid)
+
+ggplot(n_offspring, aes(x = log(n))) + geom_density()
+```
+
+
+```{r unit activity sum}
+unit_activity = unit_relation %>% 
+  left_join(personal_prod, 
+            by = c('offspringcontactid' = 'BK_ContactID')) %>%
+  group_by(parentcontactid) %>% summarise(activity = sum(activity_status > 1))
+  
+```
+
+
+
+```{r test}
+parent_id = 20002886211
+off_id = unit_relation$offspringcontactid[unit_relation$parentcontactid == parent_id]
+
+unit = unit_prod %>% filter(contactid %in% off_id)
+personal = personal_prod %>% filter(BK_ContactID %in% off_id)
+
+
+unit_prod %>% filter(contactid %in% unit_relation$offspringcontactid[unit_relation$parentcontactid == 20002886537
+])
+
+personal_prod %>% filter(BK_ContactID %in% unit_relation$offspringcontactid[unit_relation$parentcontactid == 20002886537
+])
+
+
+
+unit_relation %>% filter(parentcontactid == parent_id) %>% as.data.frame()
+
+write.csv(unit, "unit.csv")
+write.csv(personal, "personal.csv")
+```
+
+
+```{r merge} 
+var_1712 = unit_prod %>% 
+  left_join(n_offspring, by = c("contactid" = "parentcontactid")) %>%
+  rename(offspring_num = n) %>% 
+  left_join(personal_prof, by = c("contactid" = "BK_ContactID")) %>%
+  left_join(personal_prod, by = c("contactid" = "BK_ContactID")) %>%
+  left_join(unit_activity, by = c("contactid" = "parentcontactid")) %>%
+  left_join(unit_prod_y)
+
+
+```
+
+## 特征
+
+```{r data1712}
+var = var_1712 %>% select(ProductionAmount, 
+                          NewRecruitCount, OrderingConsultantCount, 
+                          NBCCount, ABCCount, PBCCount, TBCCount, 
+                          DIQCount, FDirCount, RJCount,  StarCount, SBCCount, BC15Count, BC10Count ,
+                          offspring_num, workdur, age, monthssincebecomingbc, CareerLevelCode,
+                          activity_status, activity,
+                          PrimaryProvince) %>%
+  mutate(PrimaryProvince = as.factor(PrimaryProvince)) %>%
+  na.omit()
+  #filter(offspring_num > 1) ## important subset
+
+summary(var)
+```
+
+**上下两个chunk选一个**
+
+```{r data201804 before}
+unit_prod_y = read_csv("data/unit prod.csv") %>% 
+  mutate(ProductionMonthKey = lubridate::ymd(paste0(ProductionMonthKey, "01"))) %>%
+  filter(ProductionMonthKey == "2018-04-01") %>%
+  select(contactid, ProductionAmount)
+
+var = read_csv("data/part4.csv") %>% 
+  left_join(unit_prod_y) %>%
+  select(-contactid, -X1)
+```
+
+```{r x and y}
+x = select(var, -ProductionAmount)
+x_num = select(x, -(15:361))
+
+is_all_na = map_dbl(x_num, ~ mean(is.na(.)))
+is_all_inf = map_dbl(x_num, ~ mean(is.infinite(.)))
+
+x_num = x_num[is_all_na != 1]
+
+x_num = mutate_if(x_num, is.character, 
+                 ~ stringr::str_remove(., "\\[") %>% stringr::str_remove("\\]") %>% 
+  as.numeric()
+)
+
+var = cbind(y, x_num) %>% as.matrix()
+var[is.infinite(var)] = NA
+var[is.nan(var)] = NA
+var = na.roughfix(var) %>% as.data.frame()
+
+names(var)[1] = "ProductionAmount"
+
+x_num = select(var, -ProductionAmount)
+y = var$ProductionAmount
+
+
+temp = read_csv("data/part4.csv") %>% 
+  left_join(mean_y)
+y_mean = temp$ProductionAmount
+```
+
+
+```{r density and corplot }
+GGally::ggpairs(select(var, ProductionAmount, NewRecruitCount, OrderingConsultantCount, offspring_num, workdur, age, monthssincebecomingbc, CareerLevelCode, activity_status, activity))
+```
+
+```{r}
+PerformanceAnalytics::chart.Correlation(x_num, histogram=TRUE, pch=19)
+```
+
+## 特征选择
+
+```{r}
+nzv <- nearZeroVar(x_num)
+```
+
+
+```{r high correlation}
+Cor_var <- cor(x_num %>% as.matrix(), use = "pairwise.complete.obs")
+summary(Cor_var[upper.tri(Cor_var)])
+
+Cor_var[is.na(Cor_var)] = 0
+
+highlyCor <- findCorrelation(Cor_var, cutoff = .80)
+highlyCor_name = colnames(x_num)[highlyCor]
+
+Cor2 <- cor(select(x_num, -highlyCor))
+summary(Cor2[upper.tri(Cor2)])
+```
+
+```{r LinearCombos}
+comboInfo <- findLinearCombos(x_num)
+# filteredvar[, -comboInfo$remove]
+comboInfo
+```
+
+```{r var set}
+names_all = colnames(var)
+name_1 = setdiff(names_all, highlyCor_name)
+```
+
+```{r}
+ggplot(var, aes(y = ProductionAmount, x = age_MLK)) + geom_point() + 
+  geom_smooth()
+
+ggplot(var, aes(y = ProductionAmount, x = longitude)) + geom_point() + 
+  geom_smooth()
+
+ggplot(var, aes(y = ProductionAmount, x = latitude)) + geom_point() + 
+  geom_smooth()
+```
+
+
+
+## 有监督模型
+
+```{r}
+fit = lm(ProductionAmount ~ . , data = var[name_1])
+summary(fit)
+
+fit = lm(ProductionAmount ~ . , data = bind_cols(select(var, ProductionAmount), x_num))
+summary(fit)
+
+car::vif(fit)
+car::vif(fit) %>% sqrt() > 2
+```
+
+```{r lasso}
+x_new = as.matrix(x_num) 
+
+model_lasso <- glmnet::glmnet(x = x_new, y = y, 
+                      alpha = 1
+                      )
+# use cv to selcet lambda
+lasso.cv <- cv.glmnet(x = x_new, y = y, 
+                      alpha = 1, 
+                      nfold = 5
+                      )
+plot(lasso.cv)
+
+model_lasso_min <- glmnet(x = x_new, y = y, 
+                    alpha = 1, 
+                    lambda = lasso.cv$lambda.min
+                    )
+imp_lasso = model_lasso_min$beta[, 1]
+varimp[names(sort(abs(varimp), decreasing = T))] %>% round(2) %>%
+  write.csv("varimp.csv")
+
+r2 <- function(actual, predict) {1 - (sum((actual-predict )^2)/sum((actual-mean(actual))^2))
+}
+
+
+y_hat_lasso = predict(model_lasso_min, newx = x_new) %>% as.vector()
+r2(y, y_hat_lasso)
+
+```
+
+
+```{r varimp}
+varimp = varimp[names(sort(abs(varimp), decreasing = T))]
+names(varimp)[1:15]
+```
+
+```{r rpart}
+model_rpart = rpart(ProductionAmount/1000 ~ ., 
+                    data = var, 
+                    control = rpart.control(cp = 0.01)
+                    )
+## cp table
+model_rpart$cptable
+plotcp(model_rpart)
+
+## prune
+model_rpart_prune = prune(model_rpart, cp = .01)
+
+## plot
+rpart.plot::prp(model_rpart_prune, type = 2, fallen.leaves = T, main = "Decision Tree")
+rpart.plot::rpart.plot(model_rpart_prune)
+
+## varimp
+varImp(model_rpart) %>% write.csv("rpart_varimp.csv")
+```
+
+```{r random forest}
+model_rf = randomForest(ProductionAmount ~ . , 
+                        data = var, 
+                        importance = T)
+
+imp_rf = importance(model_rf, type = 2) %>%
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  arrange(desc(IncNodePurity))
+imp_rf %>% mutate(IncNodePurity = round(IncNodePurity/1e9, 2)) %>% write.csv("imp_rf.csv")
+
+
+```
+
+```{r xgboost}
+model_xgboost = xgboost(data = x_new, 
+                        label = y, 
+                        nrounds = 20)
+
+xgb.plot.multi.trees(model = model_xgboost)
+xgb.plot.tree(model = model_xgboost, trees = 0)
+xgb.plot.tree(model = model_xgboost, trees = 1)
+
+
+importance_matrix <- xgb.importance(colnames(x_new), 
+                                    model = model_xgboost)
+
+y_hat_xgboost = predict(model_xgboost, newdata = x_new)
+
+y - y_hat
+var(y)
+
+r2(y, y_hat_xgboost)
+
+class(importance_matrix)
+
+importance_matrix %>% 
+  #mutate(Frequency = round(Frequency, 1)) %>%
+  write.csv("imp_xgboost.csv")
+```
+
+
+## 无监督模型
+
+
+### Hierarchical Clustering
+
+```{r hc}
+var_std = var %>% 
+  #select(-ProductionAmount, -PrimaryProvince) %>% 
+  #select_if(names(x) %in% names(varimp)[1:15]) %>%
+  mutate_all(funs((. - mean(.))/sd(.) ))
+#write.csv(var, "var_1712.csv")
+
+hc_std = hclust(dist(scale(x_new)), method = "ave")
+labels = cut_number(y, 3, labels = 1:3)
+
+plot(hc_std, hang = -1, labels = label)
+rect.hclust(hc_std, k = 5)
+
+group_hc = cutree(hc_std, k = 5)
+table(group_hc, label)
+```
+
+```{r hc sample}
+i_sample = NULL
+for (i in 1:5) {
+  i_level = sample(seq_along(label)[label == i], 20)
+  i_sample = c(i_sample, i_level)
+}
+
+hc_sample = hclust(dist(scale(x_new)[i_sample, ]), method = "median")
+label_sample = label[i_sample]
+
+plot(hc_sample, hang = -1, labels = label_sample)
+rect.hclust(hc_sample, k = 5)
+
+group_hc = cutree(hc_std, k = 5)
+table(group_hc, label)
+```
+
+### PCA
+
+
+```{r}
+pca = prcomp(x_new, scale. = T)
+
+pca_var = pca$sdev ^ 2
+pca_var_ratio = (pca_var / sum(pca_var)) %>% cumsum()
+
+pca_var_ratio
+
+qplot(x = 1:ncol(x_new), y = pca_var_ratio, geom = "point", 
+      ylab = "cum_var", 
+      xlab = "Principal Component", 
+      main = "Cumulative Proportion of Variance Explained")
+```
+
+
+```{r}
+x_lasso = (t(scale(x_new)) * abs(imp_lasso)) %>% t()
+x_lasso = x_lasso[, imp_lasso != 0]
+
+x_lasso1 = x_new[, imp_lasso != 0] %>% scale()
+
+pca = prcomp(x_lasso, scale. = F)
+
+pca_var = pca$sdev ^ 2
+pca_var_ratio = (pca_var / sum(pca_var)) %>% cumsum()
+
+pca_var_ratio
+
+qplot(x = 1:ncol(x_lasso), y = pca_var_ratio, geom = "point", 
+      ylab = "cum_var", 
+      xlab = "Principal Component", 
+      main = "Cumulative Proportion of Variance Explained")
+```
+
+
+```{r}
+mean_y = read_csv("data/mean_y.csv") %>% select(ProductionAmount, contactid)
+```
+
+
+```{r}
+var_pca = pca$x
+
+ggplot(as.data.frame(var_pca), aes(x = PC1, y = PC2)) + 
+  geom_point() +
+  labs(title = "Unit Feature PCA")
+
+#id_chief = read_csv("chief.csv") %>% .$parentcontactid
+id_all = read_csv("data/part4.csv") %>% .$contactid
+
+labels = cut_number(y, 2, labels = 1:2)
+df = data.frame(var_pca, labels, id_all)
+#df_sub = df[id_all %in% id_chief, ]
+
+ggplot(filter(df, id_all %in% new_id) , aes(x = PC1, y = PC2, color = labels)) + 
+  geom_point() + 
+  labs(title = "Unit Feature weighted_lasso PCA", color = "ProductionAmount")
+
+
+```
+
+
+```{r tsne}
+## Rtsne function may take some minutes to complete...
+set.seed(9)  
+tsne_model_1 = Rtsne(as.matrix(x_num[1:1000, ]), 
+                     check_duplicates=FALSE, 
+                     pca=TRUE, 
+                     perplexity = 7, 
+                     theta=0.5, 
+                     dims=2)
+
+## getting the two dimension matrix
+d_tsne_1 = as.data.frame(tsne_model_1$Y)  
+
+label_sample = label[1:1000]
+ggplot(data.frame(d_tsne_1, label_sample), aes(x = V1, y = V2, color = label_sample)) + 
+  geom_point() +
+  labs(title = "Unit Feature t-SNE")
+```
+
+
+### K MEANS
+
+```{r k_means}
+temp = (colnames(x_num) %in% highlyCor_name)
+k_means = pam(x_num[!temp], k = 5, stand = T)
+
+n = nrow(x_new)
+i = sample(n, n/2)
+#x_sample = x_new
+k_means = pam(x_new, k = 3, stand = T)
+k_means$silinfo$avg.width
+
+cluster = k_means$clustering %>% as.factor()
+df = data.frame(var_pca[, 1:2], cluster)
+ggplot(df, aes(x = PC1, y = PC2, color = cluster)) + 
+  geom_point() + 
+  labs(title = "Unit Feature kmeans-3")
+
+
+k_means_5 = pam(x_new[i, ], k = 5, stand = T, do.swap = F)
+k_means_5$silinfo$avg.width
+
+plot(k_means, which.plots = 2, main = "")
+plot(k_means, which.plots = 1, main = "")
+
+clusplot(x_sample, k_means$cluster, 
+         color = TRUE, 
+         shade = TRUE, 
+         labels = 2, 
+         lines = 0, main = "PCA Cluster")
+
+```
+
+```{r k means lasso}
+k_means_lasso = pam(x_lasso, k = 3, stand = F, do.swap = F)
+k_means_lasso$silinfo$avg.width
+
+k_means_lasso1 = pam(x_lasso1, k = 3, stand = F, do.swap = F)
+k_means_lasso1$silinfo$avg.width
+
+k_means_lasso_5 = pam(x_lasso[i, ], k = 5, stand = F, do.swap = F)
+k_means_lasso_5$silinfo$avg.width
+
+# lasso 0.0794456
+# weight 0.3320203
+var_pca = pca$x
+cluster = k_means_lasso$clustering %>% as.factor()
+df = data.frame(var_pca[, 1:2], cluster)
+ggplot(df, aes(x = PC1, y = PC2, color = cluster)) + 
+  geom_point() + 
+  labs(title = "Unit Feature weighted lasso kmeans-3")
+```
+
+
+```{r lasso and xgboost}
+
+id_6000 = read_csv("data/skin+analyzer+users.csv") %>% .$contactid
+
+k_means_mix = pam(cbind(y_hat_lasso, y_hat_xgboost), k = 3, stand = T, do.swap = F)
+k_means_mix$silinfo$avg.width
+
+cluster = k_means_mix$clustering %>% as.factor()
+df = data.frame(y_hat_lasso, y_hat_xgboost, cluster)
+ggplot(df, aes(x = y_hat_lasso, y = y_hat_xgboost, color = cluster)) + 
+  geom_point() 
+
+labels = cut_number(y, 3, labels = 1:3)
+q_5 = (table(cluster) / nrow(var)) %>% as.vector() %>% cumsum()
+q_5 = c(0, q_5)
+labels = cut(y, breaks = quantile(y, probs = q_5), include.lowest = T, labels = 1:3) %>% as.factor()
+df = data.frame(y_hat_lasso, y_hat_xgboost, labels)
+ggplot(df, 
+       aes(x = y_hat_lasso, y = y_hat_xgboost, color = labels)) + 
+  geom_point() + labs(color = "Performance")
+
+tibble(prod = log(y), cluster = cluster) %>%
+  ggplot(aes(x = cluster, y = prod, fill = cluster)) + geom_boxplot() + 
+  labs(x = "cluster", fill = "cluster")
+```
+
+```{r}
+temp = read_csv("data/testt.csv") 
+
+ggplot(temp, aes(x = lasso, y = xgboost, color = as.factor(perform))) + 
+  geom_point() + labs(color = "performence")
+
+ggplot(temp, aes(x = lasso, y = xgboost, color = as.factor(kmeans))) + 
+  geom_point() + labs(color = "cluster") + scale_colour_manual(values = c("#999999", "#E69F00", "black"))
+
+```
+
+
+
+```{r k means pca}
+pca = prcomp(x_new, scale. = T)
+var_pca = pca$x
+
+k_means_pca = pam(var_pca[, 1:2], k = 3, stand = F, do.swap = F)
+k_means_pca$silinfo$avg.width
+```
+
+
+
+```{r contrast of cluster performence}
+tibble(prod = log(y), cluster = k_means$clustering) %>%
+  ggplot(aes(x = as.factor(cluster), y = prod, fill = as.factor(cluster))) + geom_boxplot() +
+labs(x = "cluster", fill = "cluster")
+
+tibble(prod = log(y)[i], cluster = k_means_5$clustering) %>%
+  ggplot(aes(x = as.factor(cluster), y = prod, fill = as.factor(cluster))) + geom_boxplot() +
+labs(x = "cluster", fill = "cluster")
+
+tibble(prod = y_mean, cluster = k_means_lasso$clustering) %>%
+  ggplot(aes(x = as.factor(cluster), y = prod, fill = as.factor(cluster))) + geom_boxplot() + 
+  labs(x = "cluster", fill = "cluster")
+
+tibble(prod = log(y)[i], cluster = k_means_lasso_5$clustering) %>%
+  ggplot(aes(x = as.factor(cluster), y = prod, fill = as.factor(cluster))) + geom_boxplot() + 
+  labs(x = "cluster", fill = "cluster")
+
+```
+
+
+
+```{r var_pca k_means}
+k_means_pca = pam(var_pca[, 1:12], k = 3)
+
+plot(k_means_pca, which.plots = 2, main = "")
+plot(k_means_pca, which.plots = 1, main = "")
+```
+
+### DBSCAN
+
+```{r}
+dbscan_model = dbscan
+```
+
