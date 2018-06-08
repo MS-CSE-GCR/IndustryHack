@@ -2,7 +2,7 @@
 Please list all the algorithms or solutions you used for this problem.
 
 ## Azure Service
-- 
+- Azure VM
 
 ## Architecture
 Please provide an architecture image if possible.
