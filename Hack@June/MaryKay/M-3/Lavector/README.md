@@ -22,6 +22,5 @@ Please provide an architecture image if possible.
 
 ## Result
 Any Results or Web Service API. Some Results or Dashboard images are required.
-![result1](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/系统架构.png "result1")
-![result2](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/系统架构.png "result2")
-![result3](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/系统架构.png "result3")
+![recall](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/标签召回对比.png "recall")
+![acc](https://raw.githubusercontent.com/MS-CSE-GCR/IndustryHack/master/Hack%40June/MaryKay/M-3/Lavector/算法准确率对比.png "acc")
